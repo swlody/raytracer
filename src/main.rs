@@ -20,18 +20,37 @@ pub fn unit_vector(vector: &Vector3<f32>) -> Vector3<f32> {
 }
 
 fn color(ray: &Ray, world: &Hitable) -> Vector3<f32> {
-    match world.hit(ray, 0.0, std::f32::MAX) {
+    match world.hit(ray, 0.001, std::f32::MAX) {
         Some(record) => {
-            0.5 * Vector3::new(
-                record.normal.x + 1.0,
-                record.normal.y + 1.0,
-                record.normal.z + 1.0,
+            let target = record.p + record.normal + random_in_unit_sphere();
+
+            0.5 * color(
+                &Ray {
+                    origin: record.p,
+                    direction: target - record.p,
+                },
+                world,
             )
         }
         None => {
             let unit_direction = unit_vector(&ray.direction);
             let t = 0.5 * (unit_direction.y + 1.0);
             (1.0 - t) * Vector3::new(1.0, 1.0, 1.0) + t * Vector3::new(0.5, 0.7, 1.0)
+        }
+    }
+}
+
+fn random_in_unit_sphere() -> Vector3<f32> {
+    loop {
+        let p = Vector3::new(
+            rand::thread_rng().gen::<f32>(),
+            rand::thread_rng().gen::<f32>(),
+            rand::thread_rng().gen::<f32>(),
+        ) * 2.0
+            - Vector3::new(1.0, 1.0, 1.0);
+
+        if dot(&p, &p) < 1.0 {
+            return p;
         }
     }
 }
@@ -65,24 +84,23 @@ fn main() {
 
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let mut column = Vector3::new(0.0, 0.0, 0.0);
+            let column = (0..ns)
+                .map(|_| {
+                    let u = (i as f32 + rand::thread_rng().gen::<f32>()) / nx as f32;
+                    let v = (j as f32 + rand::thread_rng().gen::<f32>()) / ny as f32;
 
-            for _ in 0..ns {
-                let u = (i as f32 + rand::thread_rng().gen::<f32>()) / nx as f32;
-                let v = (j as f32 + rand::thread_rng().gen::<f32>()) / ny as f32;
+                    let ray = camera.get_ray(u, v);
 
-                let ray = camera.get_ray(u, v);
+                    // let p = ray.point_at_parameter(2.0);
 
-                // let p = ray.point_at_parameter(2.0);
+                    color(&ray, &world)
+                })
+                .sum::<Vector3<f32>>()
+                / ns as f32;
 
-                column += color(&ray, &world);
-            }
-
-            column /= ns as f32;
-
-            let ir = (255.99 * column[0]) as u8;
-            let ig = (255.99 * column[1]) as u8;
-            let ib = (255.99 * column[2]) as u8;
+            let ir = (255.99 * column[0].sqrt()) as u8;
+            let ig = (255.99 * column[1].sqrt()) as u8;
+            let ib = (255.99 * column[2].sqrt()) as u8;
 
             buffer.extend([ir, ig, ib, 255].iter().cloned());
         }
