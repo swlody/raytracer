@@ -1,4 +1,5 @@
 use crate::camera::Camera;
+use crate::material::Dielectric;
 use crate::material::Lambertian;
 use crate::material::Metal;
 use crate::ray::Ray;
@@ -74,35 +75,35 @@ fn main() {
         Vector3::new(0.0, 2.0, 0.0),
     );
 
-    let lam1 = Lambertian::new(Vector3::new(0.8, 0.3, 0.3));
+    let lam1 = Lambertian::new(Vector3::new(0.1, 0.2, 0.5));
     let lam2 = Lambertian::new(Vector3::new(0.8, 0.8, 0.0));
-    let met1 = Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0);
-    let met2 = Metal::new(Vector3::new(0.8, 0.8, 0.8), 0.3);
+    let met1 = Metal::new(Vector3::new(0.8, 0.6, 0.2), 0.0);
+    let die1 = Dielectric::new(1.5);
 
     let world = SphereList {
         list: vec![
             Sphere::new(Vector3::new(0.0, 0.0, -1.0), 0.5, &lam1),
             Sphere::new(Vector3::new(0.0, -100.5, -1.0), 100.0, &lam2),
             Sphere::new(Vector3::new(1.0, 0.0, -1.0), 0.5, &met1),
-            Sphere::new(Vector3::new(-1.0, 0.0, -1.0), 0.5, &met2),
+            Sphere::new(Vector3::new(-1.0, 0.0, -1.0), 0.5, &die1),
+            Sphere::new(Vector3::new(-1.0, 0.0, -1.0), -0.45, &die1),
         ],
     };
 
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let column = (0..ns)
-                .map(|_| {
-                    let u = (i as f32 + rand::thread_rng().gen::<f32>()) / nx as f32;
-                    let v = (j as f32 + rand::thread_rng().gen::<f32>()) / ny as f32;
+            let mut column = Vector3::new(0.0, 0.0, 0.0);
 
-                    let ray = camera.get_ray(u, v);
+            for _ in 0..ns {
+                let u = (i as f32 + rand::thread_rng().gen::<f32>()) / nx as f32;
+                let v = (j as f32 + rand::thread_rng().gen::<f32>()) / ny as f32;
 
-                    // let p = ray.point_at_parameter(2.0);
+                let ray = camera.get_ray(u, v);
 
-                    color(&ray, &world, 0)
-                })
-                .sum::<Vector3<f32>>()
-                / ns as f32;
+                column += color(&ray, &world, 0);
+            }
+
+            column /= ns as f32;
 
             let ir = (255.99 * column[0].sqrt()) as u8;
             let ig = (255.99 * column[1].sqrt()) as u8;

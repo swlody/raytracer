@@ -35,7 +35,7 @@ pub struct Sphere<'a> {
 }
 
 impl<'a> Sphere<'a> {
-    pub fn new(center: Vector3<f32>, radius: f32, material: &Material) -> Sphere {
+    pub fn new(center: Vector3<f32>, radius: f32, material: &'a Material) -> Sphere {
         Sphere {
             center: center,
             radius: radius,
