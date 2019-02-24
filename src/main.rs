@@ -1,56 +1,36 @@
+use crate::ray::Ray;
+use crate::sphere::dot;
+use crate::sphere::Hitable;
+use crate::sphere::Sphere;
+use crate::sphere::SphereList;
 use cgmath::Vector3;
 use png::{Encoder, HasParameters};
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
-struct Ray {
-    origin: Vector3<f32>,
-    direction: Vector3<f32>,
-}
+mod ray;
+mod sphere;
 
-impl Ray {
-    fn point_at_parameter(&self, t: f32) -> Vector3<f32> {
-        return self.origin + (t * self.direction);
-    }
-}
-
-fn dot(a: &Vector3<f32>, b: &Vector3<f32>) -> f32 {
-    a.x * b.x + a.y * b.y + a.z * b.z
-}
-
-fn unit_vector(vector: &Vector3<f32>) -> Vector3<f32> {
+pub fn unit_vector(vector: &Vector3<f32>) -> Vector3<f32> {
     return vector / dot(vector, vector).sqrt();
 }
 
-fn hit_sphere(center: &Vector3<f32>, radius: f32, ray: &Ray) -> f32 {
-    let oc = ray.origin - center;
-    let a = dot(&ray.direction, &ray.direction);
-    let b = 2.0 * dot(&oc, &ray.direction);
-    let c = dot(&oc, &oc) - (radius * radius);
-
-    let discriminant = (b * b) - (4.0 * a * c);
-
-    if discriminant < 0.0 {
-        -1.0
-    } else {
-        (-b - discriminant.sqrt()) / (2.0 * a)
+fn color(ray: &Ray, world: &Hitable) -> Vector3<f32> {
+    match world.hit(ray, 0.0, std::f32::MAX) {
+        Some(record) => {
+            0.5 * Vector3::new(
+                record.normal.x + 1.0,
+                record.normal.y + 1.0,
+                record.normal.z + 1.0,
+            )
+        }
+        None => {
+            let unit_direction = unit_vector(&ray.direction);
+            let t = 0.5 * (unit_direction.y + 1.0);
+            (1.0 - t) * Vector3::new(1.0, 1.0, 1.0) + t * Vector3::new(0.5, 0.7, 1.0)
+        }
     }
-}
-
-fn color(ray: &Ray) -> Vector3<f32> {
-    let t = hit_sphere(&Vector3::new(0.0, 0.0, -1.0), 0.5, ray);
-
-    if t > 0.0 {
-        let n = unit_vector(&(ray.point_at_parameter(t) - Vector3::new(0.0, 0.0, -1.0)));
-
-        return 0.5 * Vector3::new(n.x + 1.0, n.y + 1.0, n.z + 1.0);
-    }
-
-    let unit_direction = unit_vector(&ray.direction);
-    let t = 0.5 * (unit_direction.y + 1.0);
-
-    (1.0 - t) * Vector3::new(1.0, 1.0, 1.0) + t * Vector3::new(0.5, 0.7, 1.0)
 }
 
 fn main() {
@@ -64,6 +44,19 @@ fn main() {
     let vertical = Vector3::new(0.0, 2.0, 0.0);
     let origin = Vector3::new(0.0, 0.0, 0.0);
 
+    let world = SphereList {
+        list: vec![
+            Sphere {
+                center: Vector3::new(0.0, 0.0, -1.0),
+                radius: 0.5,
+            },
+            Sphere {
+                center: Vector3::new(0.0, -100.5, -1.0),
+                radius: 100.0,
+            },
+        ],
+    };
+
     for j in (0..ny).rev() {
         for i in 0..nx {
             let u = i as f32 / nx as f32;
@@ -74,7 +67,7 @@ fn main() {
                 direction: lower_left_corner + u * horizontal + v * vertical,
             };
 
-            let col = color(&ray);
+            let col = color(&ray, &world);
 
             let ir = (255.99 * col[0]) as u8;
             let ig = (255.99 * col[1]) as u8;
