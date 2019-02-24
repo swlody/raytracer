@@ -1,3 +1,4 @@
+use crate::camera::Camera;
 use crate::ray::Ray;
 use crate::sphere::dot;
 use crate::sphere::Hitable;
@@ -5,10 +6,12 @@ use crate::sphere::Sphere;
 use crate::sphere::SphereList;
 use cgmath::Vector3;
 use png::{Encoder, HasParameters};
+use rand::Rng;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 
+mod camera;
 mod ray;
 mod sphere;
 
@@ -36,13 +39,16 @@ fn color(ray: &Ray, world: &Hitable) -> Vector3<f32> {
 fn main() {
     let nx: u32 = 1000;
     let ny: u32 = 500;
+    let ns: u32 = 100;
 
     let mut buffer: Vec<u8> = Vec::with_capacity(((nx * ny) * 4) as usize);
 
-    let lower_left_corner = Vector3::new(-2.0, -1.0, -1.0);
-    let horizontal = Vector3::new(4.0, 0.0, 0.0);
-    let vertical = Vector3::new(0.0, 2.0, 0.0);
-    let origin = Vector3::new(0.0, 0.0, 0.0);
+    let camera = Camera {
+        lower_left_corner: Vector3::new(-2.0, -1.0, -1.0),
+        horizontal: Vector3::new(4.0, 0.0, 0.0),
+        vertical: Vector3::new(0.0, 2.0, 0.0),
+        origin: Vector3::new(0.0, 0.0, 0.0),
+    };
 
     let world = SphereList {
         list: vec![
@@ -59,19 +65,24 @@ fn main() {
 
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let u = i as f32 / nx as f32;
-            let v = j as f32 / ny as f32;
+            let mut column = Vector3::new(0.0, 0.0, 0.0);
 
-            let ray = Ray {
-                origin: origin,
-                direction: lower_left_corner + u * horizontal + v * vertical,
-            };
+            for _ in 0..ns {
+                let u = (i as f32 + rand::thread_rng().gen::<f32>()) / nx as f32;
+                let v = (j as f32 + rand::thread_rng().gen::<f32>()) / ny as f32;
 
-            let col = color(&ray, &world);
+                let ray = camera.get_ray(u, v);
 
-            let ir = (255.99 * col[0]) as u8;
-            let ig = (255.99 * col[1]) as u8;
-            let ib = (255.99 * col[2]) as u8;
+                // let p = ray.point_at_parameter(2.0);
+
+                column += color(&ray, &world);
+            }
+
+            column /= ns as f32;
+
+            let ir = (255.99 * column[0]) as u8;
+            let ig = (255.99 * column[1]) as u8;
+            let ib = (255.99 * column[2]) as u8;
 
             buffer.extend([ir, ig, ib, 255].iter().cloned());
         }
