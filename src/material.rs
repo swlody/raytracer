@@ -1,8 +1,9 @@
-use crate::random_in_unit_sphere;
 use crate::ray::Ray;
-use crate::sphere::dot;
+use crate::sphere::random_in_unit_sphere;
 use crate::sphere::HitRecord;
 use crate::unit_vector;
+use crate::vector_utils::dot;
+use crate::vector_utils::vector_length;
 use cgmath::Vector3;
 use rand::Rng;
 
@@ -86,19 +87,18 @@ fn schlick(cosine: f32, ref_idx: f32) -> f32 {
 
 impl Material for Dielectric {
     fn scatter(&self, r_in: &Ray, record: &HitRecord) -> Option<(Ray, Vector3<f32>)> {
-        let (outward_normal, ni_over_nt, cosine) = if dot(&r_in.direction, &record.normal) > 0.0 {
+        let dir = dot(&r_in.direction, &record.normal);
+        let (outward_normal, ni_over_nt, cosine) = if dir > 0.0 {
             (
                 -record.normal,
                 self.ref_idx,
-                self.ref_idx * dot(&r_in.direction, &record.normal)
-                    / dot(&r_in.direction, &r_in.direction).sqrt(),
+                self.ref_idx * dir / vector_length(&r_in.direction),
             )
         } else {
             (
                 record.normal,
                 1.0 / self.ref_idx,
-                -dot(&r_in.direction, &record.normal)
-                    / dot(&r_in.direction, &r_in.direction).sqrt(),
+                -dir / vector_length(&r_in.direction),
             )
         };
 

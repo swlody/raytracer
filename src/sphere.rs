@@ -1,9 +1,22 @@
 use crate::material::Material;
 use crate::ray::Ray;
+use crate::vector_utils::*;
 use cgmath::Vector3;
+use rand::Rng;
 
-pub fn dot(a: &Vector3<f32>, b: &Vector3<f32>) -> f32 {
-    a.x * b.x + a.y * b.y + a.z * b.z
+pub fn random_in_unit_sphere() -> Vector3<f32> {
+    loop {
+        let p = Vector3::new(
+            rand::thread_rng().gen::<f32>(),
+            rand::thread_rng().gen::<f32>(),
+            rand::thread_rng().gen::<f32>(),
+        ) * 2.0
+            - Vector3::new(1.0, 1.0, 1.0);
+
+        if dot(&p, &p) < 1.0 {
+            return p;
+        }
+    }
 }
 
 pub struct HitRecord<'a> {
