@@ -1,26 +1,50 @@
+use crate::material::Material;
 use crate::ray::Ray;
 use cgmath::Vector3;
 
-pub struct HitRecord {
+pub fn dot(a: &Vector3<f32>, b: &Vector3<f32>) -> f32 {
+    a.x * b.x + a.y * b.y + a.z * b.z
+}
+
+pub struct HitRecord<'a> {
     pub t: f32,
     pub p: Vector3<f32>,
     pub normal: Vector3<f32>,
+    pub material: &'a Material,
+}
+
+impl<'a> HitRecord<'a> {
+    pub fn new(t: f32, p: Vector3<f32>, normal: Vector3<f32>, material: &Material) -> HitRecord {
+        HitRecord {
+            t: t,
+            p: p,
+            normal: normal,
+            material: material,
+        }
+    }
 }
 
 pub trait Hitable {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord>;
 }
 
-pub struct Sphere {
+pub struct Sphere<'a> {
     pub center: Vector3<f32>,
     pub radius: f32,
+    pub material: &'a Material,
 }
 
-pub fn dot(a: &Vector3<f32>, b: &Vector3<f32>) -> f32 {
-    a.x * b.x + a.y * b.y + a.z * b.z
+impl<'a> Sphere<'a> {
+    pub fn new(center: Vector3<f32>, radius: f32, material: &Material) -> Sphere {
+        Sphere {
+            center: center,
+            radius: radius,
+            material: material,
+        }
+    }
 }
 
-impl Hitable for Sphere {
+impl<'a> Hitable for Sphere<'a> {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         let oc = ray.origin - self.center;
         let a = dot(&ray.direction, &ray.direction);
@@ -33,11 +57,12 @@ impl Hitable for Sphere {
             if temp < t_max && temp > t_min {
                 let p = ray.point_at_parameter(temp);
 
-                return Some(HitRecord {
-                    t: temp,
-                    p: p,
-                    normal: (p - self.center) / self.radius,
-                });
+                return Some(HitRecord::new(
+                    temp,
+                    p,
+                    (p - self.center) / self.radius,
+                    self.material,
+                ));
             }
         }
 
@@ -45,11 +70,11 @@ impl Hitable for Sphere {
     }
 }
 
-pub struct SphereList {
-    pub list: Vec<Sphere>,
+pub struct SphereList<'a> {
+    pub list: Vec<Sphere<'a>>,
 }
 
-impl Hitable for SphereList {
+impl<'a> Hitable for SphereList<'a> {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         let mut closest_so_far = t_max;
         let mut record: Option<HitRecord> = None;

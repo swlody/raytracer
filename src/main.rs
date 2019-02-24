@@ -1,4 +1,6 @@
 use crate::camera::Camera;
+use crate::material::Lambertian;
+use crate::material::Metal;
 use crate::ray::Ray;
 use crate::sphere::dot;
 use crate::sphere::Hitable;
@@ -12,25 +14,28 @@ use std::io::BufWriter;
 use std::path::Path;
 
 mod camera;
+mod material;
 mod ray;
 mod sphere;
+
+pub fn vector_multiply(a: &Vector3<f32>, b: &Vector3<f32>) -> Vector3<f32> {
+    Vector3::new(a.x * b.x, a.y * b.y, a.z * b.z)
+}
 
 pub fn unit_vector(vector: &Vector3<f32>) -> Vector3<f32> {
     return vector / dot(vector, vector).sqrt();
 }
 
-fn color(ray: &Ray, world: &Hitable) -> Vector3<f32> {
+fn color(ray: &Ray, world: &Hitable, depth: i32) -> Vector3<f32> {
     match world.hit(ray, 0.001, std::f32::MAX) {
         Some(record) => {
-            let target = record.p + record.normal + random_in_unit_sphere();
+            if depth < 50 {
+                if let Some((scattered, attenuation)) = record.material.scatter(&ray, &record) {
+                    return vector_multiply(&attenuation, &color(&scattered, world, depth + 1));
+                }
+            }
 
-            0.5 * color(
-                &Ray {
-                    origin: record.p,
-                    direction: target - record.p,
-                },
-                world,
-            )
+            Vector3::new(0.0, 0.0, 0.0)
         }
         None => {
             let unit_direction = unit_vector(&ray.direction);
@@ -62,23 +67,24 @@ fn main() {
 
     let mut buffer: Vec<u8> = Vec::with_capacity(((nx * ny) * 4) as usize);
 
-    let camera = Camera {
-        lower_left_corner: Vector3::new(-2.0, -1.0, -1.0),
-        horizontal: Vector3::new(4.0, 0.0, 0.0),
-        vertical: Vector3::new(0.0, 2.0, 0.0),
-        origin: Vector3::new(0.0, 0.0, 0.0),
-    };
+    let camera = Camera::new(
+        Vector3::new(0.0, 0.0, 0.0),
+        Vector3::new(-2.0, -1.0, -1.0),
+        Vector3::new(4.0, 0.0, 0.0),
+        Vector3::new(0.0, 2.0, 0.0),
+    );
+
+    let lam1 = Lambertian::new(Vector3::new(0.8, 0.3, 0.3));
+    let lam2 = Lambertian::new(Vector3::new(0.8, 0.8, 0.0));
+    let met1 = Metal::new(Vector3::new(0.8, 0.6, 0.2), 1.0);
+    let met2 = Metal::new(Vector3::new(0.8, 0.8, 0.8), 0.3);
 
     let world = SphereList {
         list: vec![
-            Sphere {
-                center: Vector3::new(0.0, 0.0, -1.0),
-                radius: 0.5,
-            },
-            Sphere {
-                center: Vector3::new(0.0, -100.5, -1.0),
-                radius: 100.0,
-            },
+            Sphere::new(Vector3::new(0.0, 0.0, -1.0), 0.5, &lam1),
+            Sphere::new(Vector3::new(0.0, -100.5, -1.0), 100.0, &lam2),
+            Sphere::new(Vector3::new(1.0, 0.0, -1.0), 0.5, &met1),
+            Sphere::new(Vector3::new(-1.0, 0.0, -1.0), 0.5, &met2),
         ],
     };
 
@@ -93,7 +99,7 @@ fn main() {
 
                     // let p = ray.point_at_parameter(2.0);
 
-                    color(&ray, &world)
+                    color(&ray, &world, 0)
                 })
                 .sum::<Vector3<f32>>()
                 / ns as f32;
