@@ -1,4 +1,3 @@
 /target
 **/*.rs.bk
-render.png
 Cargo.lock
